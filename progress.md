@@ -35,7 +35,50 @@
   3. Design the public-facing "Wall of Love" card component.
 
 
+Date: Nov 25, 2025
+Phase: Phase 3 (Public Widget & Auth) - COMPLETED
+Tech Stack: Next.js 16, Supabase Auth, Tailwind 4.
+Completed Features:
 
+Public Widget Page: Created the dynamic route /embed/[userId] that displays reviews publicly without auth.
+
+Embed Code Generator: Built a component that generates the specific <iframe> code for users to copy.
+
+Authentication System:
+Implemented Login and Signup pages with Server Actions.
+Added Business Name field to signup flow.
+Created Auth Callback route (/auth/callback) to handle email verification links.
+
+Database Automation:
+Added SQL Triggers to automatically create a profiles row when a new user signs up.
+Updated RLS policies to allow public reading of reviews and profiles.
+
+Dashboard Overhaul:
+Replaced the simple list with a "Pro" dashboard layout.
+Added Top Navbar, Stats Cards, and "Empty State" UI.
+Added Logout functionality.
+File Inventory (Today's Work):
+1. Public Widget & Logic
+app/embed/[userId]/page.tsx (The public "Wall of Love" page).
+components/EmbedCodeGenerator.tsx (The UI to copy the iframe code).
+2. Authentication
+app/login/page.tsx (Split-screen login UI).
+app/login/actions.ts (Server actions for login).
+app/signup/page.tsx (Dedicated signup UI with Business Name).
+app/signup/actions.ts (Server actions for signup).
+app/auth/callback/route.ts (API route to handle Supabase email links).
+components/SignOutButton.tsx (Logout button).
+3. Infrastructure
+app/page.tsx (The main Dashboard, completely rewritten).
+utils/supabase/server.ts (Server-side Supabase client).
+utils/supabase/client.ts (Client-side Supabase client).
+4. Database (SQL Run)
+Trigger: handle_new_user (Auto-creates profile on signup).
+RLS: Enabled public read access for reviews and profiles.
+Next Steps (Tomorrow):
+Brand Identity: Create a proper Logo and Navbar design.
+UI Polish: Consistent fonts, refined colors, and mobile responsiveness check.
+Landing Page: (Optional) Start thinking about the home page (/) for visitors who aren't logged in.
 
 
 

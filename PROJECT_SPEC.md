@@ -29,3 +29,7 @@ A dashboard for freelancers to manually input reviews (WhatsApp, LinkedIn, etc.)
 1. Create the API Route (`GET /api/reviews`) to fetch data for the widget.
 2. Build the Embed Script that users will copy-paste.
 3. Design the public-facing "Wall of Love" card.
+
+
+
+MY PASSWORD: e6dee6a1c13f

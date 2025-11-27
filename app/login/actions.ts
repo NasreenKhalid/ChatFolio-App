@@ -23,7 +23,7 @@ export async function login(formData: FormData) {
 
   // 3. If successful, refresh and go to dashboard
   revalidatePath('/', 'layout')
-  redirect('/')
+  redirect('/dashboard')
 }
 
 export async function signup(formData: FormData) {

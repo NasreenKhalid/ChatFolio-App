@@ -80,7 +80,94 @@ Brand Identity: Create a proper Logo and Navbar design.
 UI Polish: Consistent fonts, refined colors, and mobile responsiveness check.
 Landing Page: (Optional) Start thinking about the home page (/) for visitors who aren't logged in.
 
+**Date:** Nov 26, 2025
+- **Phase:** Phase 4 (Structure, Branding & Media) - COMPLETED
+- **Tech Stack:** Next.js 16, Supabase Storage, Tailwind 4.
 
+- **Completed Features:**
+  - [x] **Restructuring:** Moved App to `/dashboard` and Landing Page to `/`.
+  - [x] **Security:** Added Middleware to protect dashboard routes.
+  - [x] **Branding:** Implemented "Indigo & Slate" modern theme; added Logo component.
+  - [x] **Landing Page:** Created a conversion-focused home page with a "Mock Wall" demo.
+  - [x] **Image Support:** 
+    - Configured Supabase Storage bucket (`review-images`).
+    - Added `image_url` column to DB.
+    - Updated `AddReviewModal` to handle file uploads.
+  - [x] **UI Polish:** 
+    - Created interactive `StarRating` component.
+    - Upgraded `ReviewCard` to Client Component (Edit/Delete logic).
+    - Improved visual hierarchy (Bigger images, better badges).
+
+- **Current Issues (To Fix Tomorrow):**
+  - Rating update not saving in Edit mode.
+  - Avatar images looking oval (CSS aspect-ratio fix needed).
+  - "Other" source needs a custom text input.
+  - Badge padding needs adjustment.
+
+
+For Tomorrow: The Fix List
+I have noted down exactly what we need to polish first thing tomorrow before moving to Stripe:
+Bug: Fix Rating editing (currently not updating in DB).
+UI: Fix Avatar aspect ratio (force it to be square/circular, not oval).
+Feature: Add text input when "Other" source is selected.
+UI: Increase padding on Source Badges (WhatsApp/LinkedIn).
+Phase 5: Implement Stripe Checkout (Subscription & Payment).
+On clicking Delete, it should show a confirmation modal, not an alert window
+
+- **Next Steps (Phase 5 - Revenue & Polish):**
+  1. Fix the identified UI bugs.
+  2. **Stripe Integration:** Set up checkout for "Pro" plan.
+  3. **User Registration:** Ensure the flow from Signup -> Payment -> Pro Access works.
+
+  TrustWall Progress Log
+Date: Nov 23, 2025
+Phase: Phase 1 (Foundation) - COMPLETED
+Tech Stack: Next.js 16, React 19, Tailwind 4.
+Date: Nov 24, 2025
+Phase: Phase 2 (Dashboard & Logic) - COMPLETED
+Tech Stack: Next.js 16, Supabase Database.
+Date: Nov 25, 2025
+Phase: Phase 3 (Public Widget & Auth) - COMPLETED
+Tech Stack: Next.js 16, Supabase Auth.
+Date: Nov 26, 2025
+Phase: Phase 4 (Structure, Branding & Media) - COMPLETED
+Tech Stack: Next.js 16, Supabase Storage.
+Completed:
+
+Restructuring: Split Dashboard and Landing Page.
+
+Landing Page: Added "Mock Browser" demo and Features section.
+
+UI Polish:
+Fixed Avatar aspect ratio (square/circle).
+Fixed "Delete Review" logic (Instant UI update + RLS Policy fix).
+Added "Other" source input field.
+Added proper Footer and Favicon (app/icon.tsx).
+
+Navigation: Made "Public Wall" card clickable in Dashboard.
+Date: Nov 27, 2025 (Today)
+Phase: Phase 5 (Payments & Monetization) - IN PROGRESS
+Tech Stack: Lemon Squeezy (MoR), Next.js API Routes.
+Completed Features:
+
+Payment Provider: Selected Lemon Squeezy (supports PayPal + Tax handling).
+
+Database: Added subscription columns (lemon_squeezy_customer_id, variant_id, etc.) to profiles.
+
+UI: Created UpgradeButton component with loading state.
+
+API Route: Built app/api/checkout/route.ts to generate secure payment links.
+
+Verification: Confirmed API Keys and Variant IDs are working (Checkout page opens).
+Current Status:
+The Checkout flow works (opens the payment page).
+The API payload is currently "minimal" (no redirect URL yet) to isolate a validation error.
+Webhook logic is written but needs testing.
+Next Steps (Tomorrow):
+Refine Checkout: Add the redirect_url back into the API payload safely.
+Webhook Testing: Verify that a successful payment actually updates the database to "Pro".
+Deployment: Deploy the app to Vercel to test webhooks live.
+Final Polish: Ensure the "Thank You" flow feels smooth.
 
 
  Database password: zUrk@25rrXeA/R@

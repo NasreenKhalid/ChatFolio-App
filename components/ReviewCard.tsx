@@ -1,174 +1,209 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState, useTransition } from "react";
+import Image from "next/image";
 import { createClient } from "../utils/supabase/client";
-import { useRouter } from "next/navigation";
 import StarRating from "./StarRating";
-import AddReviewModal from "./AddReviewModal"; 
+import { useRouter } from "next/navigation";
 
-interface Review {
+type Review = {
   id: number;
-  reviewer_name: string;
+  reviewer_name: string; 
   review_text: string;
-  star_rating: number;
   source: string;
+  star_rating: number; // 🟢 MATCHING DB COLUMN
   image_url?: string | null;
-  created_at?: string;
-}
+  created_at: string;
+};
 
 export default function ReviewCard({ review }: { review: Review }) {
   const router = useRouter();
   const supabase = createClient();
   
-  // State
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [isVisible, setIsVisible] = useState(true); // <--- NEW: Controls local visibility
+  const [isEditing, setIsEditing] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // 🟢 New UI State
+  
+  // Local state for editing
+  const [editedReview, setEditedReview] = useState({
+    reviewer_name: review.reviewer_name,
+    review_text: review.review_text,
+    star_rating: review.star_rating || 5, 
+  });
 
-  // Fallbacks
-  const name = review.reviewer_name || "Anonymous";
-  const content = review.review_text || "";
-  const rating = review.star_rating || 5;
+  const [isPending, startTransition] = useTransition();
 
-  const handleDelete = async () => {
-    setIsDeleting(true);
-    
-    // 1. Perform Delete in DB
-    const { error } = await supabase.from("reviews").delete().eq("id", review.id);
-    
-    if (error) {
-      console.error(error);
-      alert("Failed to delete. Please check your internet or permissions.");
-      setIsDeleting(false);
-      setIsDeleteModalOpen(false);
-    } else {
-      // 2. Success! Hide the card immediately (Instant UI feedback)
-      setIsVisible(false); 
-      setIsDeleteModalOpen(false);
-      
-      // 3. Refresh the Server (Updates the 'Total Reviews' count)
-      router.refresh(); 
+  const getBadgeColor = (source: string) => {
+    const s = source ? source.toLowerCase() : "other";
+    switch (s) {
+      case "whatsapp": return "bg-green-100 text-green-800 border-green-200";
+      case "linkedin": return "bg-blue-100 text-blue-800 border-blue-200";
+      case "twitter": return "bg-black text-white border-gray-800";
+      case "email": return "bg-indigo-100 text-indigo-700 border-indigo-200";
+      default: return "bg-gray-100 text-gray-800 border-gray-200";
     }
   };
 
-  // If hidden (deleted), return nothing
-  if (!isVisible) return null;
+  // 🗑️ DELETE LOGIC
+  const handleDelete = async () => {
+    // 🟢 FIX: No more window.confirm. We show specific UI below.
+    startTransition(async () => {
+        const { error } = await supabase.from("reviews").delete().eq("id", review.id);
+        if (error) {
+            alert(`Error deleting: ${error.message}`);
+        } else {
+            router.refresh();
+        }
+    });
+  };
+
+  // 💾 UPDATE LOGIC
+  const handleUpdate = async () => {
+    startTransition(async () => {
+        const { error } = await supabase
+        .from("reviews")
+        .update({
+            reviewer_name: editedReview.reviewer_name,
+            review_text: editedReview.review_text,
+            star_rating: editedReview.star_rating, // 🟢 FIX: DB Column Name
+        })
+        .eq("id", review.id);
+
+        if (error) {
+            console.error("Update Error:", error);
+            alert(`Update Failed: ${error.message}`);
+        } else {
+            setIsEditing(false);
+            router.refresh();
+        }
+    });
+  };
 
   return (
-    <>
-    <div className="group relative bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col h-full animate-in fade-in zoom-in duration-300">
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden flex flex-col h-full hover:shadow-md transition-shadow relative group">
       
-      {/* HEADER ROW */}
-      <div className="flex justify-between items-start mb-4 gap-4">
-        
-        <div className="flex items-start gap-4">
-          {/* Avatar */}
-          {review.image_url ? (
-            <img 
-              src={review.image_url} 
-              alt={name} 
-              className="w-16 h-16 rounded-xl object-cover aspect-square border border-slate-100 shadow-sm"
-            />
-          ) : (
-            <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-indigo-50 to-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-2xl shadow-inner border border-indigo-50 aspect-square">
-              {name.charAt(0)}
+      {/* 🔴 DELETE CONFIRMATION OVERLAY */}
+      {showDeleteConfirm && (
+        <div className="absolute inset-0 z-50 bg-white/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-200">
+           <div className="bg-red-50 p-3 rounded-full mb-3">
+             <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+           </div>
+           <h4 className="text-gray-900 font-bold mb-1">Delete Review?</h4>
+           <p className="text-sm text-gray-500 mb-4">This action cannot be undone.</p>
+           <div className="flex gap-2 w-full">
+              <button 
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleDelete}
+                disabled={isPending}
+                className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg transition-colors"
+              >
+                {isPending ? "Deleting..." : "Delete"}
+              </button>
+           </div>
+        </div>
+      )}
+
+      {/* 🟢 TOP ACTIONS (Hidden while editing) */}
+      {!isEditing && !showDeleteConfirm && (
+        <div className="absolute top-3 right-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 bg-white/90 p-1.5 rounded-lg shadow-sm backdrop-blur-sm border border-gray-100">
+          <button onClick={() => setIsEditing(true)} className="text-gray-400 hover:text-blue-600 p-1" title="Edit">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+          </button>
+          <div className="w-px h-4 bg-gray-200"></div>
+          <button onClick={() => setShowDeleteConfirm(true)} className="text-gray-400 hover:text-red-600 p-1" title="Delete">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+          </button>
+        </div>
+      )}
+
+      {/* 🟢 IMAGE SECTION */}
+      {review.image_url && (
+        <div className="relative h-48 w-full bg-gray-100 border-b border-gray-100">
+           <Image src={review.image_url} alt="Proof" fill className="object-cover" />
+           <div className="absolute bottom-3 left-3">
+             <span className={`text-[10px] font-bold px-2 py-1 rounded-md border shadow-sm uppercase tracking-wider ${getBadgeColor(review.source)}`}>
+               {review.source}
+             </span>
+           </div>
+        </div>
+      )}
+
+      {/* 🟢 CONTENT SECTION */}
+      <div className="p-5 flex-grow flex flex-col gap-3">
+        {!review.image_url && (
+            <div className="flex justify-between items-start">
+               <span className={`text-[10px] font-bold px-2 py-1 rounded-md border uppercase tracking-wider ${getBadgeColor(review.source)}`}>
+                 {review.source}
+               </span>
             </div>
-          )}
-          
-          <div className="mt-1">
-            <h3 className="font-bold text-slate-900 text-lg leading-tight line-clamp-1" title={name}>{name}</h3>
-            <div className="mt-1">
-               <StarRating rating={rating} readOnly size="sm" />
+        )}
+
+        {isEditing ? (
+          // 📝 EDIT MODE
+          <div className="space-y-4 flex-grow animate-in fade-in duration-200">
+            <div>
+                <label className="text-xs font-bold text-gray-500 uppercase block mb-1">Client Name</label>
+                <input 
+                    type="text" 
+                    className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                    value={editedReview.reviewer_name}
+                    onChange={(e) => setEditedReview({...editedReview, reviewer_name: e.target.value})}
+                />
+            </div>
+            <div>
+                 <label className="text-xs font-bold text-gray-500 uppercase block mb-1">Rating</label>
+                 <div className="py-1">
+                   <StarRating 
+                     rating={editedReview.star_rating} 
+                     setRating={(r) => setEditedReview({...editedReview, star_rating: r})} 
+                     editable={true} 
+                   />
+                 </div>
+            </div>
+            <div>
+                <label className="text-xs font-bold text-gray-500 uppercase block mb-1">Review</label>
+                <textarea 
+                    className="w-full border border-gray-300 rounded-lg p-2 text-sm h-24 focus:ring-2 focus:ring-indigo-500 outline-none resize-none leading-relaxed"
+                    value={editedReview.review_text}
+                    onChange={(e) => setEditedReview({...editedReview, review_text: e.target.value})}
+                />
+            </div>
+            <div className="flex gap-2 pt-2">
+                <button 
+                  onClick={handleUpdate} 
+                  disabled={isPending}
+                  className="flex-1 bg-indigo-600 text-white text-xs font-bold py-2.5 rounded-lg hover:bg-indigo-700 disabled:opacity-70 flex justify-center items-center gap-2"
+                >
+                    {isPending ? "Saving..." : "Save Changes"}
+                </button>
+                <button 
+                  onClick={() => setIsEditing(false)} 
+                  disabled={isPending}
+                  className="flex-1 bg-gray-50 text-gray-700 border border-gray-200 text-xs font-bold py-2.5 rounded-lg hover:bg-gray-100"
+                >
+                    Cancel
+                </button>
             </div>
           </div>
-        </div>
-
-        {/* Source Badge */}
-        <span className={`text-[10px] px-3 py-1.5 rounded-full font-bold uppercase tracking-wide border whitespace-nowrap ${
-            review.source === 'linkedin' ? 'bg-blue-50 text-blue-700 border-blue-100' : 
-            review.source === 'whatsapp' ? 'bg-green-50 text-green-700 border-green-100' :
-            review.source === 'twitter' ? 'bg-slate-900 text-white border-slate-900' :
-            review.source === 'email' ? 'bg-amber-50 text-amber-700 border-amber-100' :
-            'bg-gray-100 text-gray-600 border-gray-200'
-        }`}>
-            {review.source}
-        </span>
-      </div>
-
-      {/* Content */}
-      <div className="relative flex-grow">
-        <p className="text-slate-600 text-sm leading-relaxed mb-4 line-clamp-4">
-          "{content}"
-        </p>
-      </div>
-
-      {/* Footer Date */}
-      <p className="text-xs text-slate-400 font-medium pt-4 border-t border-slate-50 mt-auto">
-          Added on {review.created_at ? new Date(review.created_at).toLocaleDateString() : "Recently"}
-      </p>
-
-      {/* ACTION BUTTONS */}
-      <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button 
-          onClick={() => setIsEditModalOpen(true)}
-          className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors bg-white/80 backdrop-blur-sm border border-slate-100 shadow-sm" 
-          title="Edit"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-        </button>
-        
-        <button 
-          onClick={() => setIsDeleteModalOpen(true)}
-          className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors bg-white/80 backdrop-blur-sm border border-slate-100 shadow-sm"
-          title="Delete"
-        >
-           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-        </button>
+        ) : (
+          // 👀 VIEW MODE
+          <>
+            <div className="flex justify-between items-start">
+              <h3 className="font-bold text-gray-900 line-clamp-1 text-base">{review.reviewer_name}</h3>
+              <div className="flex-shrink-0">
+                <StarRating rating={review.star_rating || 5} />
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 leading-relaxed line-clamp-4">
+              "{review.review_text}"
+            </p>
+          </>
+        )}
       </div>
     </div>
-
-    {/* EDIT MODAL */}
-    <AddReviewModal 
-        isOpen={isEditModalOpen} 
-        onClose={() => setIsEditModalOpen(false)} 
-        initialData={review} 
-    />
-
-    {/* CUSTOM DELETE MODAL */}
-    {isDeleteModalOpen && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-        <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden p-6 text-center space-y-4">
-          
-          <div className="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-          </div>
-          
-          <div>
-            <h3 className="text-lg font-bold text-slate-900">Delete Review?</h3>
-            <p className="text-sm text-slate-500 mt-1">
-              Are you sure you want to remove this review by <strong>{name}</strong>?
-            </p>
-          </div>
-
-          <div className="flex gap-3 pt-2">
-            <button 
-              onClick={() => setIsDeleteModalOpen(false)}
-              className="flex-1 px-4 py-2 border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-medium transition"
-            >
-              Cancel
-            </button>
-            <button 
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition disabled:opacity-50 flex justify-center items-center"
-            >
-               {isDeleting ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> : "Delete"}
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
-    </>
   );
 }

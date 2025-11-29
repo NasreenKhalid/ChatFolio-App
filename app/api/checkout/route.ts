@@ -16,25 +16,35 @@ export async function POST(req: Request) {
     const variantId = process.env.NEXT_PUBLIC_LEMONSQUEEZY_VARIANT_ID;
     const apiKey = process.env.LEMONSQUEEZY_API_KEY;
 
-    console.log("--- MINIMAL TEST ---");
-    console.log("Store:", storeId, "Variant:", variantId);
+    if (!storeId || !variantId || !apiKey) {
+      return NextResponse.json({ error: "Missing Environment Variables" }, { status: 500 });
+    }
 
-    // 🟢 MINIMAL PAYLOAD (No product_options)
+    // 🟢 FULL PAYLOAD WITH REDIRECT
     const checkoutPayload = {
       data: {
         type: "checkouts",
         attributes: {
           checkout_data: {
             email: user.email,
-            custom: { user_id: user.id },
+            // 🔑 CRITICAL: This passes the User ID to the webhook later
+            custom: {
+              user_id: user.id, 
+            },
+          },
+          product_options: {
+            // Where to send them after payment (Dashboard)
+            redirect_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`, 
+            receipt_button_text: "Go to Dashboard",
+            receipt_link_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`
           },
         },
         relationships: {
           store: {
-            data: { type: "stores", id: storeId!.toString() },
+            data: { type: "stores", id: storeId.toString() },
           },
           variant: {
-            data: { type: "variants", id: variantId!.toString() },
+            data: { type: "variants", id: variantId.toString() },
           },
         },
       },
@@ -51,11 +61,10 @@ export async function POST(req: Request) {
     });
 
     const rawText = await response.text();
-    console.log("RESPONSE:", rawText);
-
     const data = JSON.parse(rawText);
     
     if (data.errors) {
+      console.error("Lemon Squeezy API Error:", data.errors);
       return NextResponse.json({ error: "API Error", details: data.errors }, { status: 422 });
     }
 

@@ -169,6 +169,23 @@ Webhook Testing: Verify that a successful payment actually updates the database 
 Deployment: Deploy the app to Vercel to test webhooks live.
 Final Polish: Ensure the "Thank You" flow feels smooth.
 
+TrustWall Progress Log (Save State)
+Date: Nov 28, 2025
+Phase: Phase 5 (Payments) - ALMOST COMPLETE
+Status: Code is written, but Webhook testing is pending.
+✅ Completed Today:
+Fixed Checkout API: Updated app/api/checkout/route.ts to include redirect_url and pass the user_id. (The payment screen now opens correctly).
+Created Admin Client: Added utils/supabase/admin.ts to allow server-side database updates.
+Created Webhook Handler: Added app/api/webhook/route.ts to listen for Lemon Squeezy success signals.
+🚧 Current Blocker:
+Cannot test the Webhook locally because ngrok failed to download.
+The database will not update to "Pro" until the webhook is accessible by Lemon Squeezy.
+➡️ Next Steps (To do when we resume):
+Skip ngrok: We will deploy the app to Vercel instead. It is free and easier.
+Env Variables: Add LEMONSQUEEZY_WEBHOOK_SECRET and SUPABASE_SERVICE_ROLE_KEY to Vercel settings.
+Final Test: Run a test payment on the live Vercel link to confirm the user gets upgraded to "Pro".
+
+
 
  Database password: zUrk@25rrXeA/R@
 

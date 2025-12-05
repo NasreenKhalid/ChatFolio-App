@@ -12,11 +12,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
+    // FIX: Removed NEXT_PUBLIC_ to match your Vercel settings
     const storeId = process.env.LEMONSQUEEZY_STORE_ID;
-    const variantId = process.env.NEXT_PUBLIC_LEMONSQUEEZY_VARIANT_ID;
+    const variantId = process.env.LEMONSQUEEZY_VARIANT_ID; 
     const apiKey = process.env.LEMONSQUEEZY_API_KEY;
+    
+    // FIX: Fallback to your Vercel URL if APP_URL is missing
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://trustwall-6umbjf5rr-nasreenkhalids-projects.vercel.app"; 
 
     if (!storeId || !variantId || !apiKey) {
+      console.error("Missing Env Vars:", { storeId, variantId, apiKey: !!apiKey });
       return NextResponse.json({ error: "Missing Environment Variables" }, { status: 500 });
     }
 
@@ -27,16 +32,14 @@ export async function POST(req: Request) {
         attributes: {
           checkout_data: {
             email: user.email,
-            // 🔑 CRITICAL: This passes the User ID to the webhook later
             custom: {
-              user_id: user.id, 
+              user_id: user.id, // 🔑 Passes User ID to Webhook
             },
           },
           product_options: {
-            // Where to send them after payment (Dashboard)
-            redirect_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`, 
+            redirect_url: `${appUrl}/dashboard`,
             receipt_button_text: "Go to Dashboard",
-            receipt_link_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`
+            receipt_link_url: `${appUrl}/dashboard`
           },
         },
         relationships: {

@@ -185,7 +185,32 @@ Skip ngrok: We will deploy the app to Vercel instead. It is free and easier.
 Env Variables: Add LEMONSQUEEZY_WEBHOOK_SECRET and SUPABASE_SERVICE_ROLE_KEY to Vercel settings.
 Final Test: Run a test payment on the live Vercel link to confirm the user gets upgraded to "Pro".
 
+TrustWall Progress Log
+Date: Nov 29, 2025
+Phase: Phase 5 (Deployment & Final Polish) - DEPLOYED
+Tech Stack: Next.js 16, Supabase, Tailwind 4, Vercel.
+Completed Features:
 
+UI Polish:
+Fixed AddReviewModal lag using useTransition.
+Fixed ReviewCard Edit/Delete logic and column naming mismatches.
+Implemented interactive StarRating in Edit mode.
+Redesigned Public Wall with a Masonry (Pinterest-style) layout.
+
+Database Security:
+Fixed RLS policies to allow users to UPDATE and DELETE their own reviews.
+Fixed Public Wall 404 error by optimizing the database query.
+
+Deployment:
+Project successfully pushed to GitHub.
+Deployed live on Vercel.
+Environment Variables configured for Production.
+Current Blocker:
+Auth Email: Sign-up email verification is triggering but emails are not arriving (likely Supabase default SMTP limits).
+Next Steps (To Resume):
+Fix Auth: Disable "Confirm Email" in Supabase settings to bypass the email requirement for testing.
+Webhook Verification: Test the "Upgrade to Pro" flow on the live Vercel site.
+Final Walkthrough: Create a user, add 11 reviews (to hit limit), and upgrade to Pro.
 
  Database password: zUrk@25rrXeA/R@
 

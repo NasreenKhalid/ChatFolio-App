@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-export async function updateSession(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -36,15 +36,30 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   // PROTECTED ROUTES LOGIC
-  // If user is NOT logged in and tries to access /dashboard, redirect to /login
+  
+  // 1. If user is NOT logged in and tries to access /dashboard, send them to login
   if (request.nextUrl.pathname.startsWith("/dashboard") && !user) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // If user IS logged in and tries to access /login or /signup, redirect to /dashboard
+  // 2. If user IS logged in and tries to access /login or /signup, send them to dashboard
   if ((request.nextUrl.pathname === "/login" || request.nextUrl.pathname === "/signup") && user) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   return response;
 }
+
+// CRITICAL: The Matcher prevents Middleware from breaking Server Actions
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - images (svg, png, jpg, etc.)
+     */
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
+};s

@@ -212,6 +212,33 @@ Fix Auth: Disable "Confirm Email" in Supabase settings to bypass the email requi
 Webhook Verification: Test the "Upgrade to Pro" flow on the live Vercel site.
 Final Walkthrough: Create a user, add 11 reviews (to hit limit), and upgrade to Pro.
 
+Date: Dec 5, 2025
+Phase: Phase 5 (Payments & Deployment) - DEBUGGING
+Tech Stack: Next.js 16, Vercel, Lemon Squeezy.
+✅ Completed Today:
+Auth Fixed: Disabled Supabase "Confirm Email" setting; Sign-up is now instant and working on the live site.
+Middleware Fixed: Solved the 405 Method Not Allowed error by adding a matcher config to middleware.ts.
+Env Vars Updated: Corrected the mismatch in checkout/route.ts (changed NEXT_PUBLIC_LEMONSQUEEZY_VARIANT_ID to LEMONSQUEEZY_VARIANT_ID).
+🚧 Current Blocker:
+Checkout Error: The "Upgrade to Pro" button returns a 500 Internal Server Error on the live Vercel site.
+Reason: The server log likely contains the specific reason (missing key or API rejection), but the browser only shows generic "500".
+➡️ Next Steps (Tomorrow):
+Check Vercel Logs: Open the Vercel Dashboard -> Logs to read the specific error message printed by our console.error.
+Verify API Key: Ensure the Lemon Squeezy API Key has full read/write permissions.
+Test Webhook: Once the checkout opens, confirm the "Pro" upgrade happens in the database.
+Performance: (Later) Address the "Slow App" issue by optimizing database queries or regions.
+
+
+
+
+
+
+USER:
+oreo@live.com
+12345678
+
+
+
  Database password: zUrk@25rrXeA/R@
 
 ProjectID:  ymytvixnvhzkoozpeweb

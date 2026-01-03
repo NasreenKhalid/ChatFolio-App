@@ -1,7 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
-import { NextResponse, type NextRequest } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 
-export async function middleware(request: NextRequest) {
+export async function updateSession(request: NextRequest) {
+  // 1. Create an initial response
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -17,12 +18,17 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
+          // Update the request cookies
           cookiesToSet.forEach(({ name, value, options }) =>
             request.cookies.set(name, value)
           );
+          
+          // Create a new response to update response cookies
           response = NextResponse.next({
             request,
           });
+          
+          // Apply the updates to the response
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options)
           );
@@ -31,35 +37,9 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // 2. Refresh the session if it exists
+  await supabase.auth.getUser();
 
-  // PROTECTED ROUTES LOGIC
-  
-  // 1. If user is NOT logged in and tries to access /dashboard, send them to login
-  if (request.nextUrl.pathname.startsWith("/dashboard") && !user) {
-    return NextResponse.redirect(new URL("/login", request.url));
-  }
-
-  // 2. If user IS logged in and tries to access /login or /signup, send them to dashboard
-  if ((request.nextUrl.pathname === "/login" || request.nextUrl.pathname === "/signup") && user) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
-  }
-
+  // 3. Return the updated response
   return response;
 }
-
-// CRITICAL: The Matcher prevents Middleware from breaking Server Actions
-export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - images (svg, png, jpg, etc.)
-     */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
-  ],
-};s

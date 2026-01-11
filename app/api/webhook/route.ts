@@ -1,67 +1,71 @@
-import { NextResponse } from "next/server";
-import crypto from "crypto";
-import { createAdminClient } from "../../../utils/supabase/admin";
+import { createClient } from "@/utils/supabase/server";
+import { lemonSqueezySetup, createCheckout } from "@lemonsqueezy/lemonsqueezy.js";
 
-export async function POST(req: Request) {
+export async function POST(request: Request) {
   try {
-    const text = await req.text(); // Read raw body for signature verification
-    const hmac = crypto.createHmac(
-      "sha256",
-      process.env.LEMONSQUEEZY_WEBHOOK_SECRET!
-    );
-    const digest = Buffer.from(hmac.update(text).digest("hex"), "utf8");
-    const signature = Buffer.from(
-      req.headers.get("x-signature") || "",
-      "utf8"
-    );
-
-    // 1. Verify Signature (Security Check)
-    if (!crypto.timingSafeEqual(digest, signature)) {
-      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
-    }
-
-    const payload = JSON.parse(text);
-    const eventName = payload.meta.event_name;
-    const data = payload.data;
-    const attributes = data.attributes;
+    // 1. Setup Lemon Squeezy
+    const apiKey = process.env.LEMONSQUEEZY_API_KEY;
+    const storeId = process.env.LEMONSQUEEZY_STORE_ID;
+    const variantId = process.env.LEMONSQUEEZY_VARIANT_ID;
     
-    // We extracted the user_id we sent in the checkout payload here
-    const userId = payload.meta.custom_data?.user_id;
+    // DEBUG LOGS (Check Vercel Logs to see if these print)
+    console.log("Debug - Env Check:", {
+      hasApiKey: !!apiKey,
+      storeId: storeId,
+      variantId: variantId,
+      baseUrl: process.env.NEXT_PUBLIC_BASE_URL
+    });
 
-    console.log(`🔔 Webhook received: ${eventName} for User ${userId}`);
-
-    // 2. Initialize Admin Client
-    const supabaseAdmin = createAdminClient();
-
-    // 3. Handle Subscription Created
-    if (eventName === "subscription_created") {
-      if (!userId) {
-        return NextResponse.json({ error: "No User ID found in webhook" }, { status: 400 });
-      }
-
-      // Update User Profile to PRO
-      const { error } = await supabaseAdmin
-        .from("profiles")
-        .update({
-          subscription_status: "active", // Or 'pro'
-          lemon_squeezy_customer_id: attributes.customer_id,
-          lemon_squeezy_subscription_id: data.id,
-          variant_id: attributes.variant_id,
-        })
-        .eq("id", userId);
-
-      if (error) {
-        console.error("Database update failed:", error);
-        return NextResponse.json({ error: "Database update failed" }, { status: 500 });
-      }
-      
-      console.log(`✅ User ${userId} upgraded to PRO.`);
+    if (!apiKey || !storeId || !variantId) {
+      console.error("Missing Lemon Squeezy Env Vars");
+      return new Response("Server Config Error: Missing Env Vars", { status: 500 });
     }
 
-    return NextResponse.json({ received: true });
+    lemonSqueezySetup({ apiKey });
 
-  } catch (error) {
-    console.error("Webhook Error:", error);
-    return NextResponse.json({ error: "Webhook handler failed" }, { status: 500 });
+    // 2. Get User
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return new Response("Unauthorized", { status: 401 });
+    }
+
+    // 3. Create Checkout
+    console.log("Creating checkout for user:", user.id);
+    
+    // Ensure Base URL is set, fallback to origin if needed
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://trustwall.vercel.app"; // Update this fallback to your real URL if needed
+
+    const checkout = await createCheckout(
+      storeId, 
+      variantId, 
+      {
+        checkoutData: {
+          email: user.email,
+          custom: {
+            user_id: user.id,
+          },
+        },
+        productOptions: {
+          enabledVariants: [parseInt(variantId, 10)], // cast to number safely
+          redirectUrl: `${baseUrl}/success`,
+          receiptButtonText: "Go to Dashboard",
+          receiptThankYouNote: "Thank you for joining TrustWall Pro!",
+        },
+      }
+    );
+
+    console.log("Checkout created:", checkout.data?.data?.attributes?.url);
+
+    // 4. Return URL
+    return Response.json({ url: checkout.data?.data?.attributes?.url });
+
+  } catch (error: any) {
+    // THIS IS THE IMPORTANT PART
+    console.error("LEMON SQUEEZY ERROR FULL DUMP:", JSON.stringify(error, null, 2));
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
 }

@@ -5,36 +5,50 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   try {
+    // 1. Debugging Logs
+    console.log("1. Starting Checkout Process...");
+    
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (!user) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    if (authError || !user) {
+      console.error("Auth Error:", authError);
+      return NextResponse.json({ error: "User not authenticated", details: authError }, { status: 401 });
     }
+    console.log("2. User Authenticated:", user.email);
 
-    // FIX: Removed NEXT_PUBLIC_ to match your Vercel settings
+    // 2. Check Environment Variables
     const storeId = process.env.LEMONSQUEEZY_STORE_ID;
     const variantId = process.env.LEMONSQUEEZY_VARIANT_ID; 
     const apiKey = process.env.LEMONSQUEEZY_API_KEY;
-    
-    // FIX: Fallback to your Vercel URL if APP_URL is missing
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://trustwall-6umbjf5rr-nasreenkhalids-projects.vercel.app"; 
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+
+    // Debug log to see what is missing (only logs to server console)
+    console.log("3. Checking Env Vars:", { 
+      storeId: storeId ? "OK" : "MISSING", 
+      variantId: variantId ? "OK" : "MISSING", 
+      apiKey: apiKey ? "OK" : "MISSING" 
+    });
 
     if (!storeId || !variantId || !apiKey) {
-      console.error("Missing Env Vars:", { storeId, variantId, apiKey: !!apiKey });
-      return NextResponse.json({ error: "Missing Environment Variables" }, { status: 500 });
+      // Return specific error to frontend
+      return NextResponse.json({ 
+        error: "Missing Lemon Squeezy Environment Variables. Check Vercel Settings.", 
+        missing: {
+            storeId: !!storeId,
+            variantId: !!variantId,
+            apiKey: !!apiKey
+        }
+      }, { status: 500 });
     }
 
-    // 🟢 FULL PAYLOAD WITH REDIRECT
     const checkoutPayload = {
       data: {
         type: "checkouts",
         attributes: {
           checkout_data: {
             email: user.email,
-            custom: {
-              user_id: user.id, // 🔑 Passes User ID to Webhook
-            },
+            custom: { user_id: user.id },
           },
           product_options: {
             redirect_url: `${appUrl}/dashboard`,
@@ -43,16 +57,13 @@ export async function POST(req: Request) {
           },
         },
         relationships: {
-          store: {
-            data: { type: "stores", id: storeId.toString() },
-          },
-          variant: {
-            data: { type: "variants", id: variantId.toString() },
-          },
+          store: { data: { type: "stores", id: storeId.toString() } },
+          variant: { data: { type: "variants", id: variantId.toString() } },
         },
       },
     };
 
+    console.log("4. Sending request to Lemon Squeezy...");
     const response = await fetch("https://api.lemonsqueezy.com/v1/checkouts", {
       method: "POST",
       headers: {
@@ -64,17 +75,29 @@ export async function POST(req: Request) {
     });
 
     const rawText = await response.text();
-    const data = JSON.parse(rawText);
+    let data;
+    try {
+        data = JSON.parse(rawText);
+    } catch (e) {
+        console.error("Lemon Squeezy Non-JSON Response:", rawText);
+        return NextResponse.json({ error: "Lemon Squeezy returned invalid JSON", raw: rawText }, { status: 500 });
+    }
     
     if (data.errors) {
       console.error("Lemon Squeezy API Error:", data.errors);
-      return NextResponse.json({ error: "API Error", details: data.errors }, { status: 422 });
+      return NextResponse.json({ error: "Lemon Squeezy API Rejected Request", details: data.errors }, { status: 422 });
     }
 
+    console.log("5. Success! URL generated.");
     return NextResponse.json({ url: data.data.attributes.url });
 
-  } catch (error) {
-    console.error("Server Error:", error);
-    return NextResponse.json({ error: "Internal Error" }, { status: 500 });
+  } catch (error: any) {
+    // 🛑 THIS IS THE IMPORTANT FIX: Return the actual error message to frontend
+    console.error("CRITICAL CHECKOUT ERROR:", error);
+    return NextResponse.json({ 
+        error: "Internal Server Error Triggered", 
+        message: error.message, 
+        stack: error.stack 
+    }, { status: 500 });
   }
 }

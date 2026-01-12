@@ -30,27 +30,27 @@ export async function POST(request: NextRequest) {
     // 2. Parse Event Data
     const payload = JSON.parse(rawBody);
     const eventName = payload.meta.event_name;
-    const data = payload.data.attributes;
     
     // Check for 'order_created' or 'subscription_created'
     if (eventName === "order_created" || eventName === "subscription_created") {
       // 3. Extract User ID (passed as custom_data during checkout)
-      // Note: In your checkout/route.ts, ensure checkout_data: { custom: { user_id: ... } } is set
       const userId = payload.meta.custom_data?.user_id;
 
       if (userId) {
         console.log(`✅ Payment received for User: ${userId}`);
 
         // 4. Update User Status in Supabase
+        // FIX: Changed from { is_pro: true } to { subscription_status: 'pro' }
         const { error } = await supabaseAdmin
-          .from("profiles") // Assuming you have a 'profiles' table
-          .update({ is_pro: true })
+          .from("profiles")
+          .update({ subscription_status: 'pro' })
           .eq("id", userId);
 
         if (error) {
           console.error("Supabase Update Error:", error);
           return NextResponse.json({ error: "Database update failed" }, { status: 500 });
         }
+        console.log(`🎉 User ${userId} upgraded to PRO`);
       } else {
         console.warn("⚠️ No user_id found in custom_data");
       }

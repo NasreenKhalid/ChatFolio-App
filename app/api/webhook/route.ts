@@ -1,57 +1,65 @@
-import { createClient } from "@supabase/supabase-js";
-import { headers } from "next/headers";
+import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
+import { createClient } from "@supabase/supabase-js";
 
-export async function POST(request: Request) {
+// Initialize Supabase Admin Client (Service Role)
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+export async function POST(request: NextRequest) {
   try {
-    // 1. Validate Signature
-    const secret = process.env.LEMONSQUEEZY_WEBHOOK_SECRET || "";
-    if (!secret) return new Response("Secret missing", { status: 500 });
+    // 1. Validate the Request Signature
+    const secret = process.env.LEMONSQUEEZY_WEBHOOK_SECRET;
+    if (!secret) return NextResponse.json({ error: "Server config error" }, { status: 500 });
+
+    const rawBody = await request.text();
+    const signature = request.headers.get("x-signature");
+
+    if (!signature) return NextResponse.json({ error: "No signature" }, { status: 400 });
 
     const hmac = crypto.createHmac("sha256", secret);
-    const rawBody = await request.text();
     const digest = Buffer.from(hmac.update(rawBody).digest("hex"), "utf8");
-    const signature = Buffer.from(
-      (await headers()).get("x-signature") || "",
-      "utf8"
-    );
+    const signatureBuffer = Buffer.from(signature, "utf8");
 
-    if (!crypto.timingSafeEqual(digest, signature)) {
-      return new Response("Invalid signature", { status: 400 });
+    if (!crypto.timingSafeEqual(digest, signatureBuffer)) {
+      return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
     }
 
-    // 2. Parse Data
+    // 2. Parse Event Data
     const payload = JSON.parse(rawBody);
-    const { meta, data } = payload;
-    const eventName = meta.event_name;
-    const userId = meta.custom_data?.user_id;
+    const eventName = payload.meta.event_name;
+    const data = payload.data.attributes;
+    
+    // Check for 'order_created' or 'subscription_created'
+    if (eventName === "order_created" || eventName === "subscription_created") {
+      // 3. Extract User ID (passed as custom_data during checkout)
+      // Note: In your checkout/route.ts, ensure checkout_data: { custom: { user_id: ... } } is set
+      const userId = payload.meta.custom_data?.user_id;
 
-    console.log("Webhook received:", eventName, "for user:", userId);
+      if (userId) {
+        console.log(`✅ Payment received for User: ${userId}`);
 
-    // 3. Update Database (Using SERVICE ROLE key to bypass RLS)
-    if ((eventName === "order_created" || eventName === "subscription_created") && userId) {
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY! 
-      );
+        // 4. Update User Status in Supabase
+        const { error } = await supabaseAdmin
+          .from("profiles") // Assuming you have a 'profiles' table
+          .update({ is_pro: true })
+          .eq("id", userId);
 
-      const { error } = await supabase
-        .from("profiles")
-        .update({ 
-            subscription_status: "pro", 
-            lemon_squeezy_customer_id: data.attributes.customer_id 
-        })
-        .eq("user_id", userId);
-
-      if (error) {
-        console.error("DB Update Error:", error);
-        return new Response("DB Error", { status: 500 });
+        if (error) {
+          console.error("Supabase Update Error:", error);
+          return NextResponse.json({ error: "Database update failed" }, { status: 500 });
+        }
+      } else {
+        console.warn("⚠️ No user_id found in custom_data");
       }
     }
 
-    return new Response("Webhook processed", { status: 200 });
-  } catch (error) {
-    console.error("Webhook Error:", error);
-    return new Response("Server Error", { status: 500 });
+    return NextResponse.json({ received: true }, { status: 200 });
+
+  } catch (err) {
+    console.error("Webhook Error:", err);
+    return NextResponse.json({ error: "Webhook handler failed" }, { status: 500 });
   }
 }

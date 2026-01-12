@@ -252,6 +252,26 @@ Test Payment: Perform a "Test Mode" transaction on the live site.
 Verify Webhook: Confirm that the database actually updates subscription_status to pro after payment.
 UI Polish: Check the "Thank You" page redirection.
 
+Date: Jan 11, 2026 (Today)
+Phase: Phase 5 (Payments Debugging) - BLOCKED
+Tech Stack: Next.js 16, Vercel Functions.
+Completed Features & Fixes:
+
+Success Page: Created app/success/page.tsx to handle post-payment redirection smoothly.
+
+Environment Variables: Added SUPABASE_SERVICE_ROLE_KEY and NEXT_PUBLIC_BASE_URL to Vercel Settings.
+
+Checkout Logic: Updated app/api/checkout/route.ts with debug logs and correct redirectUrl.
+Current Blocker: Vercel Build Failed.
+Error: Module not found: Can't resolve '@lemonsqueezy/lemonsqueezy.js' inside app/api/webhook/route.ts.
+Root Cause:
+The Lemon Squeezy library is not installed in package.json.
+File Mismatch: The code for Checkout (imports createCheckout) was accidentally pasted into the Webhook file during debugging.
+Next Steps (Tomorrow):
+Install Library: Run npm install @lemonsqueezy/lemonsqueezy.js.
+Fix Webhook File: Delete the wrong code in app/api/webhook/route.ts and replace it with the signature verification logic.
+Redeploy: Push changes to GitHub to trigger a fresh Vercel build.
+Final Test: Run one last "Test Mode" payment to confirm the pro status update.
 
 
 USER:
